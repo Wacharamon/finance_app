@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Finance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:0; background:#FFF8E7; color:#333; }
+  header { background-color: #FFD966; padding: 20px; text-align: center; font-size:24px; font-weight:bold; color:#3E3E3E; }
+  main { padding:20px; max-width:1200px; margin:auto; }
+  .flex { display:flex; gap:20px; flex-wrap:wrap; }
+  .card { background-color:#FFF2CC; border-radius:12px; padding:20px; width:200px; text-align:center; box-shadow:2px 2px 6px rgba(0,0,0,0.1); font-weight:bold; font-size:16px; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td { border:1px solid #FFD966; padding:8px; text-align:center; }
+  th { background-color:#FFE599; }
+  input, select, button { margin:5px 0; padding:6px 10px; border-radius:6px; border:1px solid #FFD966; }
+  button { background-color:#FFD966; cursor:pointer; font-weight:bold; }
+  button:hover { background-color:#FFC107; }
+  h2 { color:#BF9000; margin-top:30px; }
+</style>
+</head>
+<body>
+
+<header>Finance Dashboard</header>
+<main>
+
+<h1>สวัสดี, <span id="usernameDisplay">ผู้ใช้</span></h1>
+<button onclick="logout()">Logout</button>
+
+<h2>สรุปการเงิน</h2>
+<div class="flex">
+  <div class="card">รายรับทั้งหมด: <span id="totalIncome">0</span> บาท</div>
+  <div class="card">รายจ่ายทั้งหมด: <span id="totalExpense">0</span> บาท</div>
+  <div class="card">คงเหลือ: <span id="balance">0</span> บาท</div>
+</div>
+
+<h2>เพิ่ม / แก้ไขรายการ</h2>
+<input type="hidden" id="editId">
+<div class="flex">
+  <div>
+    <label>หมวดหมู่</label><br>
+    <select id="category">
+      <option value="ค่าอาหาร">ค่าอาหาร</option>
+      <option value="ค่าเดินทาง">ค่าเดินทาง</option>
+      <option value="ค่าบันเทิง">ค่าบันเทิง</option>
+      <option value="อื่นๆ">อื่นๆ</option>
+    </select>
+  </div>
+  <div>
+    <label>ประเภท</label><br>
+    <select id="type">
+      <option value="income">รายรับ</option>
+      <option value="expense">รายจ่าย</option>
+    </select>
+  </div>
+  <div>
+    <label>ชื่อรายการ</label><br>
+    <input type="text" id="title">
+  </div>
+  <div>
+    <label>จำนวนเงิน</label><br>
+    <input type="number" id="amount">
+  </div>
+  <div>
+    <label>วันที่</label><br>
+    <input type="date" id="date">
+  </div>
+  <div>
+    <label>หมายเหตุ</label><br>
+    <input type="text" id="note">
+  </div>
+</div>
+<button onclick="addOrUpdate()">บันทึก</button>
+
+<h2>รายการทั้งหมด</h2>
+<table>
+  <thead>
+    <tr>
+      <th>หมวดหมู่</th>
+      <th>ประเภท</th>
+      <th>ชื่อ</th>
+      <th>เงิน</th>
+      <th>วันที่</th>
+      <th>หมายเหตุ</th>
+      <th>จัดการ</th>
+    </tr>
+  </thead>
+  <tbody id="dataTable"></tbody>
+</table>
+
+<h2>กราฟการใช้จ่ายรายเดือนตามหมวดหมู่</h2>
+<canvas id="categoryChart" width="400" height="200"></canvas>
+
+<h2>ตั้งงบประมาณและเป้าหมายการออม</h2>
+<div class="flex">
+
+  <!-- งบประมาณ -->
+  <div style="flex:1">
+    <label>หมวดหมู่</label><br>
+    <select id="budgetCategory">
+      <option value="ค่าอาหาร">ค่าอาหาร</option>
+      <option value="ค่าเดินทาง">ค่าเดินทาง</option>
+      <option value="ค่าบันเทิง">ค่าบันเทิง</option>
+      <option value="อื่นๆ">อื่นๆ</option>
+    </select><br>
+    <label>จำนวนเงิน (บาท)</label><br>
+    <input type="number" id="budgetAmount"><br>
+    <label>วันเริ่มต้น</label><br>
+    <input type="date" id="budgetStart"><br>
+    <label>วันสิ้นสุด</label><br>
+    <input type="date" id="budgetEnd"><br>
+    <button onclick="addOrUpdateBudget()">บันทึกงบประมาณ</button>
+
+    <table>
+      <thead>
+        <tr><th>หมวดหมู่</th><th>จำนวนเงิน</th><th>วันเริ่ม</th><th>วันสิ้นสุด</th><th>จัดการ</th></tr>
+      </thead>
+      <tbody id="budgetTable"></tbody>
+    </table>
+  </div>
+
+  <!-- เป้าหมายการออม -->
+  <div style="flex:1">
+    <label>เป้าหมายการออม (บาท)</label><br>
+    <input type="number" id="savingGoal"><br>
+    <button onclick="addOrUpdateSavingGoal()">บันทึกเป้าหมายการออม</button>
+
+    <table>
+      <thead>
+        <tr><th>จำนวนเงิน</th><th>จัดการ</th></tr>
+      </thead>
+      <tbody id="savingTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+const supabaseUrl = "https://zhniqcmqbgeetfvnpwbd.supabase.co";
+const supabaseKey = "sb_publishable_bEHZShPU3yCa35Lm7itS_w_ilc0MOU5";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+let currentUser = null;
+let chart = null;
+let editBudgetId = null;
+let editSavingId = null;
+
+// ฟังก์ชันช่วย escape quote ป้องกัน syntax error
+function escapeQuotes(str){
+  return str ? str.replace(/'/g,"\\'").replace(/"/g,'\\"') : '';
+}
+
+// ตรวจสอบผู้ใช้
+async function checkUser() {
+  const { data } = await supabaseClient.auth.getSession();
+  const session = data.session;
+  if(!session){ location.href="login.html"; return; }
+  currentUser = session.user;
+  document.getElementById("usernameDisplay").innerText = currentUser.email || "ผู้ใช้";
+  loadData(); loadBudgetTable(); loadSavingTable();
+}
+checkUser();
+
+async function logout() { await supabaseClient.auth.signOut(); location.href="login.html"; }
+
+// ------------------ รายรับ/รายจ่าย ------------------
+async function addOrUpdate(){
+  const id = document.getElementById("editId").value;
+  const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+  const title = document.getElementById("title").value;
+  const amount = Number(document.getElementById("amount").value);
+  const date = document.getElementById("date").value;
+  const note = document.getElementById("note").value;
+  if(!title || !amount || !date){ alert("กรอกข้อมูลไม่ครบ"); return; }
+
+  if(id){
+    await supabaseClient.from("income_expense").update({ type, category, title, amount, date, note }).eq("id", id);
+  } else {
+    await supabaseClient.from("income_expense").insert([{ user_id:currentUser.id, type, category, title, amount, date, note }]);
+  }
+  clearForm(); loadData();
+}
+
+async function loadData(){
+  const { data } = await supabaseClient.from("income_expense")
+    .select("*").eq("user_id", currentUser.id).order("date",{ascending:false});
+  renderTable(data);
+}
+
+function renderTable(data){
+  const table = document.getElementById("dataTable"); table.innerHTML="";
+  if(!data || data.length===0){ table.innerHTML="<tr><td colspan='7'>ไม่มีข้อมูล</td></tr>"; return; }
+
+  let income=0, expense=0, categoryTotals={};
+  data.forEach(item=>{
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${item.category}</td><td>${item.type}</td><td>${item.title}</td><td>${item.amount}</td><td>${item.date}</td><td>${item.note||'-'}</td>
+      <td><button onclick="editData('${item.id}')">แก้ไข</button> <button onclick="deleteData('${item.id}')">ลบ</button></td>`;
+    table.appendChild(row);
+    if(item.type==="income") income+=Number(item.amount);
+    else {
+      expense+=Number(item.amount);
+      if(!categoryTotals[item.category]) categoryTotals[item.category]=[];
+      categoryTotals[item.category].push({amount:Number(item.amount), date:item.date});
+    }
+  });
+
+  document.getElementById("totalIncome").innerText=income;
+  document.getElementById("totalExpense").innerText=expense;
+  document.getElementById("balance").innerText=income-expense;
+
+  renderCategoryChart(categoryTotals);
+}
+
+async function editData(id){
+  const { data } = await supabaseClient.from("income_expense").select("*").eq("id", id).maybeSingle();
+  if(!data) return;
+  document.getElementById("editId").value=data.id;
+  document.getElementById("type").value=data.type;
+  document.getElementById("category").value=data.category;
+  document.getElementById("title").value=data.title;
+  document.getElementById("amount").value=data.amount;
+  document.getElementById("date").value=data.date;
+  document.getElementById("note").value=data.note;
+}
+async function deleteData(id){ if(!confirm("ต้องการลบรายการนี้หรือไม่?")) return; await supabaseClient.from("income_expense").delete().eq("id", id); loadData(); }
+function clearForm(){ document.getElementById("editId").value=""; document.getElementById("title").value=""; document.getElementById("amount").value=""; document.getElementById("date").value=""; document.getElementById("note").value=""; }
+
+function renderCategoryChart(categoryTotals){
+  const monthlyTotals={};
+  for(const cat in categoryTotals){
+    categoryTotals[cat].forEach(item=>{
+      const month=item.date.slice(0,7);
+      if(!monthlyTotals[month]) monthlyTotals[month]={};
+      monthlyTotals[month][cat]=(monthlyTotals[month][cat]||0)+item.amount;
+    });
+  }
+  const months=Object.keys(monthlyTotals).sort();
+  const categories=Object.keys(categoryTotals);
+  const datasets=categories.map((cat,index)=>({
+    label:cat,
+    data:months.map(m=>monthlyTotals[m][cat]||0),
+    backgroundColor:['#FF6384','#36A2EB','#FFCE56','#8BC34A'][index%4]
+  }));
+  const ctx=document.getElementById('categoryChart').getContext('2d');
+  if(chart) chart.destroy();
+  chart=new Chart(ctx,{type:'bar', data:{labels:months,datasets:datasets}, options:{responsive:true, plugins:{title:{display:true,text:'การใช้จ่ายรายเดือนตามหมวดหมู่'}}, scales:{x:{stacked:true}, y:{stacked:true, beginAtZero:true}}}});
+}
+
+// ----------------- งบประมาณ -----------------
+async function addOrUpdateBudget(){
+  const category = document.getElementById("budgetCategory").value;
+  const amount = Number(document.getElementById("budgetAmount").value);
+  const startDate = document.getElementById("budgetStart").value;
+  const endDate = document.getElementById("budgetEnd").value;
+  if(!amount || !startDate || !endDate){ alert("กรอกข้อมูลไม่ครบ"); return; }
+
+  if(editBudgetId){
+    await supabaseClient.from("budgets").update({ category, amount, start_date:startDate, end_date:endDate }).eq("id", editBudgetId);
+    editBudgetId = null;
+  } else {
+    await supabaseClient.from("budgets").upsert([{ user_id:currentUser.id, category, amount, start_date:startDate, end_date:endDate }],{ onConflict:['user_id','category'] });
+  }
+  document.getElementById("budgetAmount").value="";
+  document.getElementById("budgetStart").value="";
+  document.getElementById("budgetEnd").value="";
+  loadBudgetTable();
+}
+
+async function loadBudgetTable(){
+  const { data } = await supabaseClient.from("budgets").select("*").eq("user_id", currentUser.id);
+  const tbody=document.getElementById("budgetTable"); 
+  tbody.innerHTML="";
+  data.forEach(item=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${item.category}</td>
+                    <td>${item.amount}</td>
+                    <td>${item.start_date||'-'}</td>
+                    <td>${item.end_date||'-'}</td>
+                    <td>
+                      <button onclick="editBudgetSafe('${item.id}','${escapeQuotes(item.category)}',${item.amount},'${escapeQuotes(item.start_date)}','${escapeQuotes(item.end_date)}')">แก้ไข</button>
+                      <button onclick="deleteBudget('${item.id}')">ลบ</button>
+                    </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editBudgetSafe(id, category, amount, start, end){
+  editBudgetId = id;
+  document.getElementById("budgetCategory").value = category;
+  document.getElementById("budgetAmount").value = amount;
+  document.getElementById("budgetStart").value = start;
+  document.getElementById("budgetEnd").value = end;
+}
+
+async function deleteBudget(id){
+  if(!confirm("ต้องการลบงบนี้หรือไม่?")) return;
+  await supabaseClient.from("budgets").delete().eq("id", id);
+  loadBudgetTable();
+}
+
+// ----------------- เป้าหมายการออม -----------------
+async function addOrUpdateSavingGoal(){
+  const amount = Number(document.getElementById("savingGoal").value);
+  if(!amount){ alert("กรอกจำนวนเงิน"); return; }
+  if(editSavingId){
+    await supabaseClient.from("saving_goals").update({ goal: amount }).eq("id", editSavingId);
+    editSavingId = null;
+  } else {
+    await supabaseClient.from("saving_goals").upsert([{ user_id:currentUser.id, goal: amount }],{ onConflict:['user_id'] });
+  }
+  document.getElementById("savingGoal").value="";
+  loadSavingTable();
+}
+
+async function loadSavingTable(){
+  const { data } = await supabaseClient.from("saving_goals").select("*").eq("user_id", currentUser.id);
+  const tbody=document.getElementById("savingTable"); 
+  tbody.innerHTML="";
+  data.forEach(item=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${item.goal}</td><td>
+      <button onclick="editSaving('${item.id}',${item.goal})">แก้ไข</button>
+      <button onclick="deleteSaving('${item.id}')">ลบ</button>
+    </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editSaving(id, goal){
+  editSavingId=id;
+  document.getElementById("savingGoal").value=goal;
+}
+
+async function deleteSaving(id){
+  if(!confirm("ต้องการลบเป้าหมายนี้หรือไม่?")) return;
+  await supabaseClient.from("saving_goals").delete().eq("id", id);
+  loadSavingTable();
+}
+</script>
+</main>
+</body>
+</html>

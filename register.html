@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Register</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #FFF8E7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .register-container {
+      background-color: #FFD966;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 4px 4px 12px rgba(0,0,0,0.2);
+      width: 350px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #3E3E3E;
+    }
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #FFC107;
+      font-size: 14px;
+    }
+    button {
+      width: 95%;
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 6px;
+      border: none;
+      background-color: #FFB74D;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #FFA726;
+    }
+    .login-link {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #3E3E3E;
+    }
+    .login-link a {
+      color: #FF5722;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<div class="register-container">
+  <h1>สมัครสมาชิก</h1>
+
+  <input type="text" id="username" placeholder="ชื่อผู้ใช้">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  
+  <button id="registerBtn" onclick="register()">สมัครสมาชิก</button>
+
+  <div class="login-link">
+    มีบัญชีอยู่แล้ว? <a href="login.html">เข้าสู่ระบบที่นี่</a>
+  </div>
+</div>
+
+<script>
+const supabaseUrl = "https://zhniqcmqbgeetfvnpwbd.supabase.co";
+const supabaseKey = "sb_publishable_bEHZShPU3yCa35Lm7itS_w_ilc0MOU5";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+async function register() {
+  const btn = document.getElementById("registerBtn");
+  btn.disabled = true; // ป้องกันกดซ้ำ
+
+  const username = document.getElementById("username").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!username || !email || !password) {
+    alert("กรอกข้อมูลให้ครบ");
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    // สมัครสมาชิก
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) throw error;
+
+    if (!data.user) {
+      throw new Error("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้หลังสมัครสมาชิก");
+    }
+
+    const userId = data.user.id;
+
+    // เพิ่มข้อมูล username ใน profiles
+    const { error: profileError } = await supabaseClient.from("profiles").insert([
+      { id: userId, username }
+    ]);
+    if (profileError) throw profileError;
+
+    alert("สมัครสมาชิกสำเร็จ! กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ");
+    location.href = "login.html";
+
+  } catch (err) {
+    alert("สมัครสมาชิกไม่สำเร็จ: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
